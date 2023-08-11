@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
+        MaxHeight="720" MaxWidth="1280" CanResize="False"
+        x:Class="TexturesTesting.MainWindow"
+        WindowStartupLocation="CenterScreen"
+        Title="TexturesTesting">
+    
+    <Grid ShowGridLines="True" RowDefinitions="32,100,1*">
+        <Menu VerticalAlignment="Top">
+            <MenuItem Header="_File" >
+                <MenuItem Click="BtnGTAPath_OnClick" x:Name="BtnGTAPath" Header="_Select GTAV Path..."/>
+                <Separator/>
+                <MenuItem x:Name="MiExit" Click="MiExit_OnClick" Header="_Exit"/>
+            </MenuItem>
+            <MenuItem x:Name="GameSettingsMI" Header="_Game Settings">
+                <MenuItem>
+                    <MenuItem.Header>
+                        <CheckBox x:Name="cbEnableMods" Content="Enable Mods"></CheckBox>
+                    </MenuItem.Header>
+                </MenuItem>
+                
+                <MenuItem x:Name="MIApplySettings" Click="MIApplySettings_OnClick" Header="_Apply Settings"/>
+            </MenuItem>
+        </Menu>
+        <StackPanel VerticalAlignment="Center" Grid.Row="2">
+            <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
+                <ComboBox x:Name="CBoxExtractType" Height="40" Width="150" SelectedIndex="0">
+                    <ComboBoxItem Content="By YMAP(s)"/>
+                    <ComboBoxItem Content="By YTYP(s)"/>
+                    <ComboBoxItem Content="By Text file"/>
+                </ComboBox>
+                <Button x:Name="BtnLookfor" Click="BtnLookfor_OnClick" Width="150" Height="40" VerticalContentAlignment="Center" Background="Transparent" HorizontalContentAlignment="Center" FontSize="20" Content="🔎"/>
+            </StackPanel>
+            
+            <Button Width="200" HorizontalContentAlignment="Center" FontWeight="Bold" HorizontalAlignment="Center" x:Name="BtnLookEnts" Click="BtnLookEnts_OnClick" Margin="10">Look for entities</Button>
+        </StackPanel>
+        <StackPanel VerticalAlignment="Center" Grid.Row="1">
+            <Label FontWeight="Bold" HorizontalAlignment="Center" Content="Extraction Settings"></Label>
+            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                <CheckBox x:Name="cbExtractXml" Margin="10" Content="Extract as XML(s)"/>
+                <CheckBox x:Name="cbExtractTextures" Margin="10" Content="Extract all Textures"/>
+            </StackPanel>
+        </StackPanel>
+        <StackPanel VerticalAlignment="Bottom" Grid.Row="3">
+            <Label HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10" x:Name="labelCache" Content="Cache not loaded"/>
+        </StackPanel>
+    </Grid>
+</Window>
