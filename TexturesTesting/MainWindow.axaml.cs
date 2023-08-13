@@ -44,7 +44,8 @@ public partial class MainWindow : Window
             Title = "Select your GTA V Path",
             AllowMultiple = false,
         });
-
+        
+        if(selectGtaPath.Count == 0) return;
         vPath = selectGtaPath[0].Path.LocalPath;
 
         if (IsGtaPathValid(vPath))
