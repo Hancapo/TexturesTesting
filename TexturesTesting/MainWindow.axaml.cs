@@ -108,9 +108,9 @@ public partial class MainWindow : Window
                         ydr.Load(ydr.RpfFileEntry.File.ExtractFile(ydr.RpfFileEntry), ydr.RpfFileEntry);
                         mt.YdrFiles.Add(ydr);
                     }
-                    if (gameFileCache.GetYdd(entity) != null)
+                    if (gameFileCache.GetYdd(GetYDDFromHash(entity)) != null)
                     {
-                        var ydd = gameFileCache.GetYdd(entity);
+                        var ydd = gameFileCache.GetYdd(GetYDDFromHash(entity));
                         ydd.Load(ydd.RpfFileEntry.File.ExtractFile(ydd.RpfFileEntry), ydd.RpfFileEntry);
                         mt.YddFiles.Add(ydd);
                     }
@@ -179,7 +179,7 @@ public partial class MainWindow : Window
                             var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
                             if (mYdd.DrawableDict != null)
                             {
-                                foreach (var dd in mYdd.DrawableDict.Drawables)
+                                foreach (var dd in mYdd.Drawables)
                                 {
                                     await Task.Run(() => CollectTextures(dd, textures, textureMissing));
                                 }
@@ -418,7 +418,7 @@ public partial class MainWindow : Window
                     {
                         globalExtractTask.MapFiles.Add(new MapTask(ytyp.Path.LocalPath, GetEntityHashesFromFile(ytyp.Path.LocalPath, 1)));
                     }
-                }
+                }   
 
                 break;
             case 2:
@@ -473,5 +473,11 @@ public partial class MainWindow : Window
     {
         
         
+    }
+    
+    private uint GetYDDFromHash(uint hash)
+    {
+        var arch = gameFileCache.GetArchetype(hash);
+        return arch != null ? arch._BaseArchetypeDef.drawableDictionary.Hash : (uint)0;
     }
 }
