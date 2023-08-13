@@ -101,43 +101,145 @@ public partial class MainWindow : Window
 
                 foreach (var entity in mapFile.EntsHashes)
                 {
-                    var foundEntity = gameFileCache.GetYdr(entity);
-                    if(foundEntity == null) continue;
-                    foundEntity.Load(foundEntity.RpfFileEntry.File.ExtractFile(foundEntity.RpfFileEntry), foundEntity.RpfFileEntry);
-                    if (!(bool)cbExtractXml.IsChecked!)
+                    ModelType mt = new();
+                    if (gameFileCache.GetYdr(entity) != null)
                     {
-                        await File.WriteAllBytesAsync($"{ymapFolderPath}\\{foundEntity.Name}", foundEntity.Save());
+                        var ydr = gameFileCache.GetYdr(entity);
+                        ydr.Load(ydr.RpfFileEntry.File.ExtractFile(ydr.RpfFileEntry), ydr.RpfFileEntry);
+                        mt.YdrFiles.Add(ydr);
                     }
-                    else
+                    if (gameFileCache.GetYdd(entity) != null)
                     {
-                        var ydrXml = MetaXml.GetXml(foundEntity, filename: out var ydrName, $"{ymapFolderPath}\\{foundEntity.Name.Split(".")[0]}");
-                        await File.WriteAllTextAsync($"{ymapFolderPath}\\{foundEntity.Name}.xml", ydrXml);
+                        var ydd = gameFileCache.GetYdd(entity);
+                        ydd.Load(ydd.RpfFileEntry.File.ExtractFile(ydd.RpfFileEntry), ydd.RpfFileEntry);
+                        mt.YddFiles.Add(ydd);
+                    }
+                    if (gameFileCache.GetYft(entity) != null)
+                    {
+                        var yft = gameFileCache.GetYft(entity);
+                        yft.Load(yft.RpfFileEntry.File.ExtractFile(yft.RpfFileEntry), yft.RpfFileEntry);
+                        mt.YftFiles.Add(yft);
                     }
 
-                    if ((bool)cbExtractTextures.IsChecked!)
+                    if(mt.YdrFiles.Count > 0)
                     {
-                        var textures = new HashSet<Texture>();
-                        var textureMissing = new HashSet<string>();
-                        var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
-                        if (foundEntity.Drawable != null)
+                        foreach (var mYdr in mt.YdrFiles)
                         {
-                            await Task.Run(() => CollectTextures(foundEntity.Drawable, textures, textureMissing));
+                            if (!(bool)cbExtractXml.IsChecked!)
+                            {
+                                await File.WriteAllBytesAsync($"{ymapFolderPath}\\{mYdr.Name}", mYdr.Save());
+                            }
+                            else
+                            {
+                                var ydrXml = MetaXml.GetXml(mYdr, filename: out var ydrName, $"{ymapFolderPath}\\{mYdr.Name.Split(".")[0]}");
+                                await File.WriteAllTextAsync($"{ymapFolderPath}\\{mYdr.Name}.xml", ydrXml);
+                            }
+
+                            if (!(bool)cbExtractTextures.IsChecked!) continue;
+                            var textures = new HashSet<Texture>();
+                            var textureMissing = new HashSet<string>();
+                            var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
+                            if (mYdr.Drawable != null)
+                            {
+                                await Task.Run(() => CollectTextures(mYdr.Drawable, textures, textureMissing));
+                            }
+
+                            Parallel.ForEach(textures, async (tex) =>
+                            {
+                                try
+                                {
+                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
+                                    var dds = DDSIO.GetDDSFile(tex);
+                                    await File.WriteAllBytesAsync(fpath, dds);
+                                }
+                                catch
+                                {
+                                    // ignored
+                                }
+                            });
+                        }   
+                    }
+                    if (mt.YddFiles.Count > 0)
+                    {
+                        foreach (var mYdd in mt.YddFiles)
+                        {
+                            if (!(bool)cbExtractXml.IsChecked!)
+                            {
+                                await File.WriteAllBytesAsync($"{ymapFolderPath}\\{mYdd.Name}", mYdd.Save());
+                            }
+                            else
+                            {
+                                var yddXml = MetaXml.GetXml(mYdd, filename: out var yddName, $"{ymapFolderPath}\\{mYdd.Name.Split(".")[0]}");
+                                await File.WriteAllTextAsync($"{ymapFolderPath}\\{mYdd.Name}.xml", yddXml);
+                            }
+
+                            if (!(bool)cbExtractTextures.IsChecked!) continue;
+                            var textures = new HashSet<Texture>();
+                            var textureMissing = new HashSet<string>();
+                            var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
+                            if (mYdd.DrawableDict != null)
+                            {
+                                foreach (var dd in mYdd.DrawableDict.Drawables)
+                                {
+                                    await Task.Run(() => CollectTextures(dd, textures, textureMissing));
+                                }
+                            }
+
+                            Parallel.ForEach(textures, async (tex) =>
+                            {
+                                try
+                                {
+                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
+                                    var dds = DDSIO.GetDDSFile(tex);
+                                    await File.WriteAllBytesAsync(fpath, dds);
+                                }
+                                catch
+                                {
+                                    // ignored
+                                }
+                            });
                         }
-
-                        Parallel.ForEach(textures, async (tex) =>
-                        {
-                            try
-                            {
-                                string fpath = $"{extract.FullName}\\{tex.Name}.dds";
-                                byte[] dds = DDSIO.GetDDSFile(tex);
-                                await File.WriteAllBytesAsync(fpath, dds);
-                            }
-                            catch
-                            {
-                                // ignored
-                            }
-                        });
                     }
+                    if (mt.YftFiles.Count > 0)
+                    {
+                        foreach (var mYft in mt.YftFiles)
+                        {
+                            if (!(bool)cbExtractXml.IsChecked!)
+                            {
+                                await File.WriteAllBytesAsync($"{ymapFolderPath}\\{mYft.Name}", mYft.Save());
+                            }
+                            else
+                            {
+                                var yftXml = MetaXml.GetXml(mYft, filename: out var yftName, $"{ymapFolderPath}\\{mYft.Name.Split(".")[0]}");
+                                await File.WriteAllTextAsync($"{ymapFolderPath}\\{mYft.Name}.xml", yftXml);
+                            }
+
+                            if (!(bool)cbExtractTextures.IsChecked!) continue;
+                            var textures = new HashSet<Texture>();
+                            var textureMissing = new HashSet<string>();
+                            var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
+                            if (mYft.Fragment.Drawable != null)
+                            {
+                                await Task.Run(() => CollectTextures(mYft.Fragment.Drawable, textures, textureMissing));
+                            }
+
+                            Parallel.ForEach(textures, async (tex) =>
+                            {
+                                try
+                                {
+                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
+                                    var dds = DDSIO.GetDDSFile(tex);
+                                    await File.WriteAllBytesAsync(fpath, dds);
+                                }
+                                catch
+                                {
+                                    // ignored
+                                }
+                            });
+                        }
+                    }
+                    
+                    
                 }
                 
             }
