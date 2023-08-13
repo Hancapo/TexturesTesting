@@ -18,18 +18,18 @@ namespace TexturesTesting;
 
 public partial class MainWindow : Window
 {
-    private static string _GTApath;
-    private GameFileCache _gameFileCache;
-
+    private static string vPath;
+    private GameFileCache gameFileCache;
+    private static ExtractTask globalExtractTask = new();
     public MainWindow()
     {
         InitializeComponent();
         ToggleControls(false);
+        BtnLookEnts.IsEnabled = false;
     }
 
     private void ToggleControls(bool state)
     {
-        BtnLookEnts.IsEnabled = state;
         cbExtractTextures.IsEnabled = state;
         cbExtractXml.IsEnabled = state;
         GameSettingsMI.IsEnabled = state;
@@ -45,16 +45,16 @@ public partial class MainWindow : Window
             AllowMultiple = false,
         });
 
-        _GTApath = selectGtaPath[0].Path.LocalPath;
+        vPath = selectGtaPath[0].Path.LocalPath;
 
-        if (IsGtaPathValid(_GTApath))
+        if (IsGtaPathValid(vPath))
         {
-            GTA5Keys.LoadFromPath(_GTApath);
-            _gameFileCache = new GameFileCache(2147483648, 10, _GTApath, null, false, "Installers;_CommonRedist");
+            GTA5Keys.LoadFromPath(vPath);
+            gameFileCache = new GameFileCache(2147483648, 10, vPath, null, false, "Installers;_CommonRedist");
             labelCache.Foreground = Brushes.GreenYellow;
             labelCache.FontFamily = FontFamily.Parse("Consolas");
-            await Task.Run(() => _gameFileCache.Init(UpdateStatusCache, UpdateStatusCache));
-            if (_gameFileCache.IsInited)
+            await Task.Run(() => gameFileCache.Init(UpdateStatusCache, UpdateStatusCache));
+            if (gameFileCache.IsInited)
             {
                 ToggleControls(true);
                 
@@ -65,7 +65,7 @@ public partial class MainWindow : Window
             var box = MessageBoxManager.GetMessageBoxStandard("Error", "Invalid GTA5 directory", ButtonEnum.Ok,
                 MsBox.Avalonia.Enums.Icon.Error, WindowStartupLocation.CenterScreen);
             SystemSoundPlayer.PlaySystemSound(SystemSoundType.Hand);
-            var result2 = await box.ShowAsync();
+            await box.ShowAsync();
         }
     }
 
@@ -81,7 +81,79 @@ public partial class MainWindow : Window
 
     private async void BtnLookEnts_OnClick(object? sender, RoutedEventArgs e)
     {
-            //WIP
+        if (globalExtractTask.MapFiles.Count > 0)
+        {
+            var msBoxExtractPath = MessageBoxManager.GetMessageBoxStandard($"Information", $"Select the folder where you want to save the files", ButtonEnum.Ok,
+                MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
+            var result = await msBoxExtractPath.ShowAsync();
+            
+            var selectFolder = await GetTopLevel(this).StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
+            {
+                Title = "Select the folder where you want to save the files",
+                AllowMultiple = false,
+            });
+            var outputPath = selectFolder[0].Path.LocalPath;
+
+            foreach (var mapFile in globalExtractTask.MapFiles)
+            {
+                var ymapFolderPath = $"{outputPath}\\{Path.GetFileNameWithoutExtension(mapFile.FileName)}";
+                Directory.CreateDirectory(ymapFolderPath);
+
+                foreach (var entity in mapFile.EntsHashes)
+                {
+                    var foundEntity = gameFileCache.GetYdr(entity);
+                    if(foundEntity == null) continue;
+                    foundEntity.Load(foundEntity.RpfFileEntry.File.ExtractFile(foundEntity.RpfFileEntry), foundEntity.RpfFileEntry);
+                    if (!(bool)cbExtractXml.IsChecked!)
+                    {
+                        await File.WriteAllBytesAsync($"{ymapFolderPath}\\{foundEntity.Name}", foundEntity.Save());
+                    }
+                    else
+                    {
+                        var ydrXml = MetaXml.GetXml(foundEntity, filename: out var ydrName, $"{ymapFolderPath}\\{foundEntity.Name.Split(".")[0]}");
+                        await File.WriteAllTextAsync($"{ymapFolderPath}\\{foundEntity.Name}.xml", ydrXml);
+                    }
+
+                    if ((bool)cbExtractTextures.IsChecked!)
+                    {
+                        var textures = new HashSet<Texture>();
+                        var textureMissing = new HashSet<string>();
+                        var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
+                        if (foundEntity.Drawable != null)
+                        {
+                            await Task.Run(() => CollectTextures(foundEntity.Drawable, textures, textureMissing));
+                        }
+
+                        Parallel.ForEach(textures, async (tex) =>
+                        {
+                            try
+                            {
+                                string fpath = $"{extract.FullName}\\{tex.Name}.dds";
+                                byte[] dds = DDSIO.GetDDSFile(tex);
+                                await File.WriteAllBytesAsync(fpath, dds);
+                            }
+                            catch
+                            {
+                                // ignored
+                            }
+                        });
+                    }
+                }
+                
+            }
+            
+            var msBoxExtract = MessageBoxManager.GetMessageBoxStandard($"Information", $"Extraction Completed", ButtonEnum.Ok,
+                MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
+            await msBoxExtract.ShowAsync();
+        }
+        else
+        {
+            var noEntsMsg = MessageBoxManager.GetMessageBoxStandard($"Information", $"No Entities Detected", ButtonEnum.Ok,
+                MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
+        }
+        
+        
+            
     }
 
     private void MiExit_OnClick(object? sender, RoutedEventArgs e)
@@ -91,16 +163,16 @@ public partial class MainWindow : Window
 
     private void MIApplySettings_OnClick(object? sender, RoutedEventArgs e)
     {
-        if (!_gameFileCache.IsInited) return;
-        _gameFileCache.SetModsEnabled((bool)cbEnableMods.IsChecked!);
+        if (!gameFileCache.IsInited) return;
+        gameFileCache.SetModsEnabled((bool)cbEnableMods.IsChecked!);
     }
 
     private void ApplySettings()
     {
-        _gameFileCache.Init(UpdateStatusCache, UpdateStatusCache);
+        gameFileCache.SetModsEnabled(cbEnableMods.IsChecked ?? false);
     }
 
-    private void CollectTextures(DrawableBase d, HashSet<Texture> textureSet, HashSet<string> textureMissing)
+    private async void CollectTextures(DrawableBase d, HashSet<Texture> textureSet, HashSet<string> textureMissing)
     {
         if (d?.ShaderGroup?.TextureDictionary?.Textures?.data_items != null)
         {
@@ -130,7 +202,7 @@ public partial class MainWindow : Window
             }
         }
 
-        Archetype arch = _gameFileCache.GetArchetype(archhash);
+        Archetype arch = gameFileCache.GetArchetype(archhash);
         if (arch == null) return;
         uint txdHash = (arch != null) ? arch.TextureDict.Hash : archhash;
         if ((txdHash == 0) && (archhash == 0))
@@ -153,19 +225,19 @@ public partial class MainWindow : Window
                     tex = TryGetTexture(texhash, txdHash);
                     if (tex == null)
                     {
-                        var ptxdhash = _gameFileCache.TryGetParentYtdHash(txdHash);
+                        var ptxdhash = gameFileCache.TryGetParentYtdHash(txdHash);
                         while ((ptxdhash != 0) && (tex == null))
                         {
                             tex = TryGetTexture(texhash, ptxdhash);
                             if (tex == null)
                             {
-                                ptxdhash = _gameFileCache.TryGetParentYtdHash(ptxdhash);
+                                ptxdhash = gameFileCache.TryGetParentYtdHash(ptxdhash);
                             }
                         }
 
                         if (tex == null)
                         {
-                            var ytd = _gameFileCache.TryGetTextureDictForTexture(texhash);
+                            var ytd = gameFileCache.TryGetTextureDictForTexture(texhash);
                             tex = TryGetTextureFromYtd(texhash, ytd);
                         }
 
@@ -187,7 +259,7 @@ public partial class MainWindow : Window
     private Texture? TryGetTexture(uint texHash, uint txdHash)
     {
         if (txdHash == 0) return null;
-        var ytd = _gameFileCache.GetYtd(txdHash);
+        var ytd = gameFileCache.GetYtd(txdHash);
         var tex = TryGetTextureFromYtd(texHash, ytd);
         return tex;
     }
@@ -201,8 +273,6 @@ public partial class MainWindow : Window
 
     private async void BtnLookfor_OnClick(object? sender, RoutedEventArgs e)
     {
-        
-        
         switch (CBoxExtractType.SelectedIndex)
         {
             case 0:
@@ -213,10 +283,19 @@ public partial class MainWindow : Window
                     AllowMultiple = true,
                     FileTypeFilter = new[] { new FilePickerFileType("YMAP(s)"){Patterns = new[] {"*.ymap"}} }
                 });
-                
+                if (ymapResult.Count <= 0) return;
                 var ymapMsgInfo =MessageBoxManager.GetMessageBoxStandard($"Information", $"Detected {ymapResult.ToList().Count} YMAP(s)", ButtonEnum.Ok,
                     MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
-                await ymapMsgInfo.ShowAsync();
+                if (ymapResult.Any(x => x.Name.Contains(".ymap")))
+                {
+                    await ymapMsgInfo.ShowAsync();
+                    BtnLookEnts.IsEnabled = true;
+                    foreach (var ymap in ymapResult)
+                    {
+                        globalExtractTask.MapFiles.Add(new MapTask(ymap.Path.LocalPath, GetEntityHashesFromFile(ymap.Path.LocalPath, 0)));
+                    }
+
+                }
                 break;
             case 1:
                 var ytypResult = await GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
@@ -228,8 +307,17 @@ public partial class MainWindow : Window
                 
                 var ytypMsgInfo =MessageBoxManager.GetMessageBoxStandard($"Information", $"Detected {ytypResult.ToList().Count} YTYP(s)", ButtonEnum.Ok,
                     MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
-                await ytypMsgInfo.ShowAsync();
-                
+                if (ytypResult.Count <= 0) return;
+                if (ytypResult.Any(x => x.Name.Contains(".ytyp")))
+                {
+                    await ytypMsgInfo.ShowAsync();
+                    BtnLookEnts.IsEnabled = true;
+                    foreach (var ytyp in ytypResult)
+                    {
+                        globalExtractTask.MapFiles.Add(new MapTask(ytyp.Path.LocalPath, GetEntityHashesFromFile(ytyp.Path.LocalPath, 1)));
+                    }
+                }
+
                 break;
             case 2:
                 var textFileResult = await GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
@@ -241,54 +329,47 @@ public partial class MainWindow : Window
                 
                 var textFileMsgInfo =MessageBoxManager.GetMessageBoxStandard($"Information", $"Valid Text File", ButtonEnum.Ok,
                     MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
-                await textFileMsgInfo.ShowAsync();
+                if (textFileResult.Count <= 0) return;
+                if (textFileResult.Any(x => x.Name.Contains(".txt")))
+                {
+                    await textFileMsgInfo.ShowAsync();
+                    BtnLookEnts.IsEnabled = true;
+                    globalExtractTask.MapFiles.Add(new MapTask(textFileResult[0].Path.LocalPath, GetEntityHashesFromFile(File.ReadAllLines(textFileResult[0].Path.LocalPath))));
+                }
                 break;
         }
+        
+        
     }
 
-    private List<uint> GetEntityHashesFromFile(List<string> files, int type)
+    private List<uint> GetEntityHashesFromFile(string file, int type)
     {
         List<uint> hashes = new();
         switch (type)
         {
             case 0:
-                List<YmapFile> ymapFiles = new();
-                foreach (var ymap in files)
-                {
-                    var ymapFile = new YmapFile();
-                    ymapFile.Load(File.ReadAllBytes(ymap));
-                    ymapFiles.Add(ymapFile);
-                }
-        
-                foreach (var ymap in ymapFiles)
-                {
-                    hashes.AddRange(ymap.AllEntities.Select(entity => entity._CEntityDef.archetypeName.Hash));
-                }
+                var ymapFile = new YmapFile();
+                ymapFile.Load(File.ReadAllBytes(file));
+                hashes.AddRange(ymapFile.AllEntities.Select(entity => entity._CEntityDef.archetypeName.Hash));
                 return hashes.Distinct().ToList();
             case 1:
-                List<YtypFile> ytypFiles = new();
-                foreach (var ytyp in files)
-                {
-                    var ytypFile = new YtypFile();
-                    ytypFile.Load(File.ReadAllBytes(ytyp));
-                    ytypFiles.Add(ytypFile);
-                }
-                List<uint> ytypHashes = new();
-                foreach (var ytyp in ytypFiles)
-                {
-                    ytypHashes.AddRange(ytyp.AllArchetypes.Select(arch => arch._BaseArchetypeDef.name.Hash));
-                }
-                return ytypHashes.Distinct().ToList();
-                
+                var ytypFile = new YtypFile();
+                ytypFile.Load(File.ReadAllBytes(file));
+                hashes.AddRange(ytypFile.AllArchetypes.Select(archetype => archetype._BaseArchetypeDef.assetName.Hash));
+                return hashes.Distinct().ToList();
         }
-        
         return hashes;
-        
     }
 
     private List<uint> GetEntityHashesFromFile(IEnumerable<string> textLines)
     {
         List<uint> hashes = textLines.Select(line => JenkHash.GenHash(line.ToLowerInvariant().Trim())).ToList();
         return hashes.Distinct().ToList();
+    }
+    
+    private void ExtractAssetsXML(List<uint> hashes, string path)
+    {
+        
+        
     }
 }
