@@ -51,14 +51,14 @@ public partial class MainWindow : Window
         if (IsGtaPathValid(vPath))
         {
             GTA5Keys.LoadFromPath(vPath);
-            gameFileCache = new GameFileCache(2147483648, 10, vPath, null, false, "Installers;_CommonRedist");
+            gameFileCache = new GameFileCache(2147483648, 10, vPath, "mp2023_02_g9ec", false, "Installers;_CommonRedist");
             labelCache.Foreground = Brushes.GreenYellow;
             labelCache.FontFamily = FontFamily.Parse("Consolas");
             await Task.Run(() => gameFileCache.Init(UpdateStatusCache, UpdateStatusCache));
             if (gameFileCache.IsInited)
             {
                 ToggleControls(true);
-                
+                Console.WriteLine();
             }
         }
         else

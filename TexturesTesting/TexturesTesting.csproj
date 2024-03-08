@@ -21,16 +21,16 @@
 
 
     <ItemGroup>
-      <Reference Include="CodeWalker.Core">
-        <HintPath>..\..\..\Downloads\Codewalker-Octants\CodeWalker.Core.dll</HintPath>
-      </Reference>
-      <Reference Include="SharpDX.Mathematics">
-        <HintPath>..\..\..\Downloads\Codewalker-Octants\SharpDX.Mathematics.dll</HintPath>
-      </Reference>
+      <None Remove="NewDirectory1\32f.jpg" />
     </ItemGroup>
 
 
     <ItemGroup>
-      <None Remove="NewDirectory1\32f.jpg" />
+      <Reference Include="CodeWalker.Core">
+        <HintPath>..\..\..\Downloads\CodeWalker30_dev46\CodeWalker.Core.dll</HintPath>
+      </Reference>
+      <Reference Include="SharpDX.Mathematics">
+        <HintPath>..\..\..\Downloads\CodeWalker30_dev46\SharpDX.Mathematics.dll</HintPath>
+      </Reference>
     </ItemGroup>
 </Project>
