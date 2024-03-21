@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <TargetFramework>net7.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -27,10 +27,13 @@
 
     <ItemGroup>
       <Reference Include="CodeWalker.Core">
-        <HintPath>..\..\..\Downloads\CodeWalker30_dev46\CodeWalker.Core.dll</HintPath>
+        <HintPath>libs\CodeWalker.Core.dll</HintPath>
+      </Reference>
+      <Reference Include="SharpDX">
+        <HintPath>libs\SharpDX.dll</HintPath>
       </Reference>
       <Reference Include="SharpDX.Mathematics">
-        <HintPath>..\..\..\Downloads\CodeWalker30_dev46\SharpDX.Mathematics.dll</HintPath>
+        <HintPath>libs\SharpDX.Mathematics.dll</HintPath>
       </Reference>
     </ItemGroup>
 </Project>

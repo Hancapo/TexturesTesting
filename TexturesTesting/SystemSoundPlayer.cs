@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-public class SystemSoundPlayer
+public abstract class SystemSoundPlayer
 {
     // Import the WinAPI PlaySound function
-    [DllImport("winmm.dll", SetLastError = true)]
+    [DllImport("winmm.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern bool PlaySound(string sound, IntPtr hMod, uint flags);
 
     public static void PlaySystemSound(SystemSoundType systemSoundType)

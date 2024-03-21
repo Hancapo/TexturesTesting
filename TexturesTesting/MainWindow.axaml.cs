@@ -1,15 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using CodeWalker.GameFiles;
 using CodeWalker.Utils;
 using MsBox.Avalonia;
@@ -32,14 +29,13 @@ public partial class MainWindow : Window
     {
         cbExtractTextures.IsEnabled = state;
         cbExtractXml.IsEnabled = state;
-        GameSettingsMI.IsEnabled = state;
         CBoxExtractType.IsEnabled = state;
         BtnLookfor.IsEnabled = state;
     }
 
     private async void BtnGTAPath_OnClick(object? sender, RoutedEventArgs e)
     {
-        var selectGtaPath = await GetTopLevel(this).StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
+        var selectGtaPath = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
         {
             Title = "Select your GTA V Path",
             AllowMultiple = false,
@@ -50,21 +46,29 @@ public partial class MainWindow : Window
 
         if (IsGtaPathValid(vPath))
         {
+            var loadMods = false;
+            var questionBox = MessageBoxManager.GetMessageBoxStandard("Information", "Do you want to enable mods?", ButtonEnum.YesNo,
+                MsBox.Avalonia.Enums.Icon.Info);
+            var result = await questionBox.ShowAsync();
             GTA5Keys.LoadFromPath(vPath);
-            gameFileCache = new GameFileCache(2147483648, 10, vPath, "mp2023_02_g9ec", false, "Installers;_CommonRedist");
+            labelCache.Content = "Loading...";
+            if (result == ButtonResult.Yes)
+            {
+                loadMods = true;
+            }
+            gameFileCache = new GameFileCache(2147483648, 10, vPath, "mp2023_02_g9ec", loadMods, "Installers;_CommonRedist", null);
             labelCache.Foreground = Brushes.GreenYellow;
             labelCache.FontFamily = FontFamily.Parse("Consolas");
-            await Task.Run(() => gameFileCache.Init(UpdateStatusCache, UpdateStatusCache));
-            if (gameFileCache.IsInited)
-            {
-                ToggleControls(true);
-                Console.WriteLine();
-            }
+            await Task.Run(() => gameFileCache.InitAsync(null, null));
+            if (!gameFileCache.IsInited) return;
+            ToggleControls(true);
+            labelCache.Content = "Game Cache Loaded";
+            BtnGTAPath.IsEnabled = false;
         }
         else
         {
             var box = MessageBoxManager.GetMessageBoxStandard("Error", "Invalid GTA5 directory", ButtonEnum.Ok,
-                MsBox.Avalonia.Enums.Icon.Error, WindowStartupLocation.CenterScreen);
+                MsBox.Avalonia.Enums.Icon.Error);
             SystemSoundPlayer.PlaySystemSound(SystemSoundType.Hand);
             await box.ShowAsync();
         }
@@ -77,24 +81,26 @@ public partial class MainWindow : Window
 
     private void UpdateStatusCache(string text)
     {
-        Dispatcher.UIThread.InvokeAsync(() => { labelCache.Content = text; });
+        //Dispatcher.UIThread.InvokeAsync(() => { labelCache.Content = text; });
     }
 
     private async void BtnLookEnts_OnClick(object? sender, RoutedEventArgs e)
     {
+        ToggleControls(false);
         if (globalExtractTask.MapFiles.Count > 0)
         {
             var msBoxExtractPath = MessageBoxManager.GetMessageBoxStandard($"Information", $"Select the folder where you want to save the files", ButtonEnum.Ok,
                 MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
             var result = await msBoxExtractPath.ShowAsync();
             
-            var selectFolder = await GetTopLevel(this).StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
+            var selectFolder = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
             {
                 Title = "Select the folder where you want to save the files",
                 AllowMultiple = false,
             });
-            var outputPath = selectFolder[0].Path.LocalPath;
-
+            
+            string? outputPath = selectFolder[0].Path.LocalPath;
+            if (string.IsNullOrEmpty(outputPath)) return;
             foreach (var mapFile in globalExtractTask.MapFiles)
             {
                 var ymapFolderPath = $"{outputPath}\\{Path.GetFileNameWithoutExtension(mapFile.FileName)}";
@@ -219,10 +225,7 @@ public partial class MainWindow : Window
                             var textures = new HashSet<Texture>();
                             var textureMissing = new HashSet<string>();
                             var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
-                            if (mYft.Fragment.Drawable != null)
-                            {
-                                await Task.Run(() => CollectTextures(mYft.Fragment.Drawable, textures, textureMissing));
-                            }
+                            await Task.Run(() => CollectTextures(mYft.Fragment.Drawable, textures, textureMissing));
 
                             Parallel.ForEach(textures, async (tex) =>
                             {
@@ -242,7 +245,8 @@ public partial class MainWindow : Window
                     
                     
                 }
-                
+
+
             }
             
             var msBoxExtract = MessageBoxManager.GetMessageBoxStandard($"Information", $"Extraction Completed", ButtonEnum.Ok,
@@ -253,9 +257,12 @@ public partial class MainWindow : Window
         {
             var noEntsMsg = MessageBoxManager.GetMessageBoxStandard($"Information", $"No Entities Detected", ButtonEnum.Ok,
                 MsBox.Avalonia.Enums.Icon.Info, WindowStartupLocation.CenterScreen);
+            await noEntsMsg.ShowAsync();
         }
         
-        
+        ToggleControls(true);
+        labelCache.Content = "Ready";
+
             
     }
 
@@ -264,18 +271,7 @@ public partial class MainWindow : Window
         Close();
     }
 
-    private void MIApplySettings_OnClick(object? sender, RoutedEventArgs e)
-    {
-        if (!gameFileCache.IsInited) return;
-        gameFileCache.SetModsEnabled((bool)cbEnableMods.IsChecked!);
-    }
-
-    private void ApplySettings()
-    {
-        gameFileCache.SetModsEnabled(cbEnableMods.IsChecked ?? false);
-    }
-
-    private async void CollectTextures(DrawableBase d, HashSet<Texture> textureSet, HashSet<string> textureMissing)
+    private void CollectTextures(DrawableBase d, HashSet<Texture> textureSet, HashSet<string> textureMissing)
     {
         if (d?.ShaderGroup?.TextureDictionary?.Textures?.data_items != null)
         {
@@ -325,7 +321,7 @@ public partial class MainWindow : Window
                 else
                 {
                     uint texhash = t.NameHash;
-                    tex = TryGetTexture(texhash, txdHash);
+                    tex = TryGetTexture(texhash, txdHash)!;
                     if (tex == null)
                     {
                         var ptxdhash = gameFileCache.TryGetParentYtdHash(txdHash);
