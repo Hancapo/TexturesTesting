@@ -28,7 +28,7 @@
                 <ComboBoxItem Content="By YMAP(s)"/>
                 <ComboBoxItem Content="By YTYP(s)"/>
                 <ComboBoxItem Content="By Text file"/>
-				<ComboBoxItem Content="By YTYP(s) + MLO Entities"/>
+                <ComboBoxItem Content="By YTYP(s) + MLO Entities"/>
             </ComboBox>
             <Button x:Name="BtnLookfor" Click="BtnLookfor_OnClick" Width="150" Height="40" VerticalContentAlignment="Center" Background="Transparent" HorizontalContentAlignment="Center" FontSize="20" Content="🔎"/>
             <Button Width="150" Height="40" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" x:Name="BtnLookEnts" Click="BtnLookEnts_OnClick">Look for entities</Button>
