@@ -397,6 +397,7 @@ public partial class MainWindow : Window
                 }
                 break;
             case 1:
+            case 3:
                 var ytypResult = await GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
                 {
                     Title = "Select YTYP(s) folder",
@@ -413,7 +414,7 @@ public partial class MainWindow : Window
                     BtnLookEnts.IsEnabled = true;
                     foreach (var ytyp in ytypResult)
                     {
-                        globalExtractTask.MapFiles.Add(new MapTask(ytyp.Path.LocalPath, GetEntityHashesFromFile(ytyp.Path.LocalPath, 1)));
+                        globalExtractTask.MapFiles.Add(new MapTask(ytyp.Path.LocalPath, GetEntityHashesFromFile(ytyp.Path.LocalPath, 1, CBoxExtractType.SelectedIndex == 3)));
                     }
                 }   
 
@@ -441,7 +442,7 @@ public partial class MainWindow : Window
         
     }
 
-    private List<uint> GetEntityHashesFromFile(string file, int type)
+    private List<uint> GetEntityHashesFromFile(string file, int type, bool includeMloEntities = false)
     {
         List<uint> hashes = new();
         switch (type)
@@ -455,6 +456,8 @@ public partial class MainWindow : Window
                 var ytypFile = new YtypFile();
                 ytypFile.Load(File.ReadAllBytes(file));
                 hashes.AddRange(ytypFile.AllArchetypes.Select(archetype => archetype._BaseArchetypeDef.assetName.Hash));
+                if (includeMloEntities)
+                    hashes.AddRange(ytypFile.MloArchetypes.SelectMany(mlo => mlo.entities).Select(x => x.Data.archetypeName.Hash));
                 return hashes.Distinct().ToList();
         }
         return hashes;
