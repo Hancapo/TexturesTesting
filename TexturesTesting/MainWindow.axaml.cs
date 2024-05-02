@@ -457,14 +457,20 @@ public partial class MainWindow : Window
                 ytypFile.Load(File.ReadAllBytes(file));
                 hashes.AddRange(ytypFile.AllArchetypes.Select(archetype => archetype._BaseArchetypeDef.assetName.Hash));
                 if (includeMloEntities)
+                {
                     foreach (var mlo in ytypFile.MloArchetypes)
                     {
-                        // Load MLO entity sets and add their hashes
-                        foreach (var entitySet in mlo.entitySets)
+                        if (mlo.entitySets != null && mlo.entitySets.Any())
                         {
-                            hashes.AddRange(entitySet.Entities.Select(x => x.Data.archetypeName.Hash));
+                            foreach (var entitySet in mlo.entitySets)
+                            {
+                                hashes.AddRange(entitySet.Entities.Select(x => x.Data.archetypeName.Hash));
+                            }
                         }
+                        // Load entities directly from the MLO archetype if entity sets are missing
+                        hashes.AddRange(mlo.entities.Select(x => x.Data.archetypeName.Hash));
                     }
+                }
                 return hashes.Distinct().ToList();
         }
         return hashes;
