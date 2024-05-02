@@ -396,8 +396,4 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-/.idea/git_toolbox_prj.xml
-/.idea/misc.xml
-/.idea/modules.xml
-/.idea/rigonkmalk-txttesting.iml
-/.idea/vcs.xml
+/.idea/*
