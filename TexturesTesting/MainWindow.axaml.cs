@@ -491,7 +491,7 @@ public partial class MainWindow : Window
                     foreach (var archetype in ytypFile.AllArchetypes.Where(x => x.Type == MetaName.CMloArchetypeDef))
                     {
                         var mlo = (MloArchetype)archetype;
-                        if (mlo!.entitySets.Length != 0)
+                        if (mlo?.entitySets != null && mlo.entitySets.Length != 0)
                         {
                             hashes.AddRange(
                                 mlo.entitySets
