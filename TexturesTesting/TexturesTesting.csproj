@@ -16,6 +16,7 @@
         <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.2" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.2" />
+        <PackageReference Include="CodeWalker.Core" Version="1.0.3" />
         <PackageReference Include="Collections.Pooled" Version="1.0.82" />
         <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.2.0" />
         <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.2.0" />
@@ -32,18 +33,5 @@
 
     <ItemGroup>
       <None Remove="NewDirectory1\32f.jpg" />
-    </ItemGroup>
-
-
-    <ItemGroup>
-      <Reference Include="CodeWalker.Core">
-        <HintPath>libs\CodeWalker.Core.dll</HintPath>
-      </Reference>
-      <Reference Include="SharpDX">
-        <HintPath>libs\SharpDX.dll</HintPath>
-      </Reference>
-      <Reference Include="SharpDX.Mathematics">
-        <HintPath>libs\SharpDX.Mathematics.dll</HintPath>
-      </Reference>
     </ItemGroup>
 </Project>

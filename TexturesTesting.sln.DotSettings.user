@@ -9,4 +9,7 @@
 	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Cvicho_005CDownloads_005CCodewalker_005Fnet8_005CCodewalker_0020net8_005CCodeWalker_002ECore_002Edll/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Cvicho_005CRiderProjects_005CTexturesTesting_005CTexturesTesting_005Clibs_005CCodeWalker_002ECore_002Edll/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Cvicho_005CRiderProjects_005CTexturesTesting_005CTexturesTesting_005Clibs_005CSharpDX_002Edll/@EntryIndexedValue">True</s:Boolean>
-	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Cvicho_005CRiderProjects_005CTexturesTesting_005CTexturesTesting_005Clibs_005CSharpDX_002EMathematics_002Edll/@EntryIndexedValue">True</s:Boolean></wpf:ResourceDictionary>
+	<s:Boolean x:Key="/Default/AddReferences/RecentPaths/=C_003A_005CUsers_005Cvicho_005CRiderProjects_005CTexturesTesting_005CTexturesTesting_005Clibs_005CSharpDX_002EMathematics_002Edll/@EntryIndexedValue">True</s:Boolean>
+	<s:String x:Key="/Default/Environment/AssemblyExplorer/XmlDocument/@EntryValue">&lt;AssemblyExplorer&gt;&#xD;
+  &lt;Assembly Path="C:\Users\vicho\.nuget\packages\codewalker.core\1.0.3\lib\netstandard2.0\CodeWalker.Core.dll" /&gt;&#xD;
+&lt;/AssemblyExplorer&gt;</s:String></wpf:ResourceDictionary>
