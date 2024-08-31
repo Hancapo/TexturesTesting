@@ -31,7 +31,7 @@
                 <ComboBoxItem Content="By YTYP(s) + MLO Entities"/>
             </ComboBox>
             <Button Classes="Warning" Theme="{DynamicResource OutlineButton}" x:Name="BtnLookfor" Click="BtnLookfor_OnClick" Width="150" Height="40" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Content="Pick file"/>
-            <Button Classes="Success" Theme="{DynamicResource OutlineButton}" Width="150" Height="40" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" x:Name="BtnLookEnts" Click="BtnLookEnts_OnClick">Look for entities</Button>
+            <Button Classes="Success" Theme="{DynamicResource OutlineButton}" Width="150" Height="40" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" x:Name="BtnLookEnts" Click="BtnLookEnts_OnClick">Extract Assets</Button>
         </StackPanel>
         <StackPanel VerticalAlignment="Bottom" Grid.Row="3">
             <Label Margin="5" Classes="Blue Ghost" Theme="{DynamicResource TagLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="labelCache" Content="Waiting"/>

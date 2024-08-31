@@ -19,9 +19,9 @@ namespace TexturesTesting;
 
 public partial class MainWindow : Window
 {
-    private static string? vPath;
+    private static string? _vPath;
     private GameFileCache _gameFileCache;
-    private static ExtractTask _globalExtractTask = new();
+    private static readonly ExtractTask _globalExtractTask = new();
 
     public MainWindow()
     {
@@ -32,6 +32,7 @@ public partial class MainWindow : Window
 
     private void ToggleControls(bool state)
     {
+        //Terrible coding right here, I'm sorry.
         cbExtractTextures.IsEnabled = state;
         cbExtractXml.IsEnabled = state;
         CBoxExtractType.IsEnabled = state;
@@ -47,22 +48,22 @@ public partial class MainWindow : Window
         });
 
         if (selectGtaPath.Count == 0) return;
-        vPath = selectGtaPath[0].Path.LocalPath;
+        _vPath = selectGtaPath[0].Path.LocalPath;
 
-        if (IsGtaPathValid(vPath))
+        if (IsGtaPathValid(_vPath))
         {
             var loadMods = false;
             var questionBox = MessageBoxManager.GetMessageBoxStandard("Information", "Do you want to enable mods?",
                 ButtonEnum.YesNo,
                 MsBox.Avalonia.Enums.Icon.Info);
             var result = await questionBox.ShowAsync();
-            GTA5Keys.LoadFromPath(vPath);
+            GTA5Keys.LoadFromPath(_vPath);
             labelCache.Content = "Loading...";
             if (result == ButtonResult.Yes)
             {
                 loadMods = true;
             }
-            _gameFileCache = new GameFileCache(int.MaxValue, 10, vPath, "mp2024_01_g9ec", loadMods,
+            _gameFileCache = new GameFileCache(int.MaxValue, 10, _vPath, "mp2024_01_g9ec", loadMods,
                 "Installers;_CommonRedist")
             {
                 LoadAudio = false,
@@ -133,9 +134,9 @@ public partial class MainWindow : Window
                         mt.YdrFiles.Add(ydr);
                     }
 
-                    if (_gameFileCache.GetYdd(GetYDDFromHash(entity)) != null)
+                    if (_gameFileCache.GetYdd(GetYddFromHash(entity)) != null)
                     {
-                        var ydd = _gameFileCache.GetYdd(GetYDDFromHash(entity));
+                        var ydd = _gameFileCache.GetYdd(GetYddFromHash(entity));
                         ydd.Load(ydd.RpfFileEntry.File.ExtractFile(ydd.RpfFileEntry), ydd.RpfFileEntry);
                         mt.YddFiles.Add(ydd);
                     }
@@ -291,7 +292,7 @@ public partial class MainWindow : Window
         Close();
     }
 
-    private void CollectTextures(DrawableBase d, HashSet<Texture> textureSet, HashSet<string> textureMissing)
+    private void CollectTextures(DrawableBase d, ISet<Texture> textureSet, ISet<string> textureMissing)
     {
         if (d?.ShaderGroup?.TextureDictionary?.Textures?.data_items != null)
         {
@@ -471,9 +472,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private List<uint> GetEntityHashesFromFile(string file, int type, bool includeMloEntities = false)
+    private static List<uint> GetEntityHashesFromFile(string file, int type, bool includeMloEntities = false)
     {
-        List<uint> hashes = new();
+        List<uint> hashes = [];
         switch (type)
         {
             case 0:
@@ -507,17 +508,17 @@ public partial class MainWindow : Window
         return hashes;
     }
 
-    private List<uint> GetEntityHashesFromFile(IEnumerable<string> textLines)
+    private static List<uint> GetEntityHashesFromFile(IEnumerable<string> textLines)
     {
         List<uint> hashes = textLines.Select(line => JenkHash.GenHash(line.ToLowerInvariant().Trim())).ToList();
         return hashes.Distinct().ToList();
     }
 
-    private void ExtractAssetsXML(List<uint> hashes, string path)
+    private void ExtractAssetsXml(List<uint> hashes, string path)
     {
     }
 
-    private uint GetYDDFromHash(uint hash)
+    private uint GetYddFromHash(uint hash)
     {
         var arch = _gameFileCache.GetArchetype(hash);
         return arch != null ? arch._BaseArchetypeDef.drawableDictionary.Hash : (uint)0;
