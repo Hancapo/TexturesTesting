@@ -1,12 +1,12 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="TexturesTesting.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Dark"
+             xmlns:semi="https://irihi.tech/semi"
+             >
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
-    <Application.Styles>
-        <FluentTheme>
-            
-        </FluentTheme>
-    </Application.Styles>
+             <Application.Styles>
+                 <semi:SemiTheme />
+             </Application.Styles>
 </Application>

@@ -2,14 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
-        MaxHeight="400" MaxWidth="500" CanResize="False"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+        MaxWidth="600" MaxHeight="500" CanResize="False"
         x:Class="TexturesTesting.MainWindow"
         WindowStartupLocation="CenterScreen"
         Title="TexturesTesting">
     
-    <Grid Background="MidnightBlue" RowDefinitions="*,*,*,*">
-        <Menu  VerticalAlignment="Top">
+    <Grid RowDefinitions="*,*,*,*">
+        <Menu  VerticalAlignment="Top" Background="SlateGray">
             <MenuItem Header="_File" >
                 <MenuItem Click="BtnGTAPath_OnClick" x:Name="BtnGTAPath" Header="_Select GTAV Path..."/>
                 <Separator/>
@@ -17,24 +17,24 @@
             </MenuItem>
         </Menu>
         <StackPanel Grid.Row="1">
-            <Label FontWeight="Bold" HorizontalAlignment="Center" Content="Extraction Settings"></Label>
-            <StackPanel HorizontalAlignment="Center" Orientation="Vertical">
-                <CheckBox x:Name="cbExtractXml" Content="Extract as XML(s)"/>
-                <CheckBox x:Name="cbExtractTextures" Content="Extract all Textures"/>
+            <Label Margin="10" FontWeight="Bold" HorizontalAlignment="Center" Content="Extraction Settings"></Label>
+            <StackPanel Spacing="30" HorizontalAlignment="Center" Orientation="Horizontal">
+                <CheckBox Theme="{DynamicResource CardCheckBox}" x:Name="cbExtractXml" Content="Extract as XML(s)"/>
+                <CheckBox Theme="{DynamicResource CardCheckBox}" x:Name="cbExtractTextures" Content="Extract all Textures"/>
             </StackPanel>
         </StackPanel>
-        <StackPanel HorizontalAlignment="Center" Grid.Row="2">
+        <StackPanel Spacing="10" HorizontalAlignment="Center" Grid.Row="2">
             <ComboBox x:Name="CBoxExtractType" Height="40" Width="150" SelectedIndex="0">
                 <ComboBoxItem Content="By YMAP(s)"/>
                 <ComboBoxItem Content="By YTYP(s)"/>
                 <ComboBoxItem Content="By Text file"/>
                 <ComboBoxItem Content="By YTYP(s) + MLO Entities"/>
             </ComboBox>
-            <Button x:Name="BtnLookfor" Click="BtnLookfor_OnClick" Width="150" Height="40" VerticalContentAlignment="Center" Background="Transparent" HorizontalContentAlignment="Center" FontSize="20" Content="🔎"/>
-            <Button Width="150" Height="40" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" x:Name="BtnLookEnts" Click="BtnLookEnts_OnClick">Look for entities</Button>
+            <Button Classes="Warning" Theme="{DynamicResource OutlineButton}" x:Name="BtnLookfor" Click="BtnLookfor_OnClick" Width="150" Height="40" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Content="Pick file"/>
+            <Button Classes="Success" Theme="{DynamicResource OutlineButton}" Width="150" Height="40" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" FontWeight="Bold" x:Name="BtnLookEnts" Click="BtnLookEnts_OnClick">Look for entities</Button>
         </StackPanel>
-        <StackPanel Background="Crimson" VerticalAlignment="Bottom" Grid.Row="3">
-            <Label HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="labelCache" Content="Waiting" Foreground="GreenYellow" FontFamily="Consolas"/>
+        <StackPanel VerticalAlignment="Bottom" Grid.Row="3">
+            <Label Margin="5" Classes="Blue Ghost" Theme="{DynamicResource TagLabel}" HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="labelCache" Content="Waiting"/>
         </StackPanel>
     </Grid>
 </Window>

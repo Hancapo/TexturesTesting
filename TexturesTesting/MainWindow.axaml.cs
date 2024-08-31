@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -61,9 +63,12 @@ public partial class MainWindow : Window
                 loadMods = true;
             }
             _gameFileCache = new GameFileCache(int.MaxValue, 10, vPath, "mp2024_01_g9ec", loadMods,
-                "Installers;_CommonRedist");
-            labelCache.Foreground = Brushes.GreenYellow;
-            labelCache.FontFamily = FontFamily.Parse("Consolas"); 
+                "Installers;_CommonRedist")
+            {
+                LoadAudio = false,
+                LoadVehicles = false,
+                LoadPeds = false
+            };
             await Task.Run(() => _gameFileCache.Init(UpdateStatusCache, UpdateErrorLog));
             if (!_gameFileCache.IsInited) return;
             ToggleControls(true);
