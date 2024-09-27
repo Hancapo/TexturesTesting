@@ -14,6 +14,7 @@ using CodeWalker.GameFiles;
 using CodeWalker.Utils;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
+using Salaros.Configuration;
 
 namespace TexturesTesting;
 
@@ -22,6 +23,8 @@ public partial class MainWindow : Window
     private static string? _vPath;
     private GameFileCache _gameFileCache;
     private static readonly ExtractTask _globalExtractTask = new();
+
+    private string config = System.AppDomain.CurrentDomain.BaseDirectory + @"config.ini";
 
     public MainWindow()
     {
@@ -41,14 +44,28 @@ public partial class MainWindow : Window
 
     private async void BtnGTAPath_OnClick(object? sender, RoutedEventArgs e)
     {
-        var selectGtaPath = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
-        {
-            Title = "Select your GTA V Path",
-            AllowMultiple = false,
-        });
+        var cfg = new ConfigParser(config);
 
-        if (selectGtaPath.Count == 0) return;
-        _vPath = selectGtaPath[0].Path.LocalPath;
+        // Check if config value exists
+        string? configGtaPath = cfg.GetValue("CONFIG", "GTA5Path");
+
+        if (!string.IsNullOrEmpty(configGtaPath) && IsGtaPathValid(configGtaPath))
+        {
+            _vPath = configGtaPath;
+        }
+        else
+        {
+            var selectGtaPath = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
+            {
+                Title = "Select your GTA V Path",
+                AllowMultiple = false,
+            });
+
+            if (selectGtaPath.Count == 0) return;
+            _vPath = selectGtaPath[0].Path.LocalPath;
+            cfg.SetValue("CONFIG", "GTA5Path", _vPath);
+            cfg.Save();
+        }
 
         if (IsGtaPathValid(_vPath))
         {
