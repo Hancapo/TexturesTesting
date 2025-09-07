@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace TexturesTesting;
@@ -25,7 +26,7 @@ public partial class MainWindow : Window
     private GameFileCache _gameFileCache;
     private static readonly ExtractTask _globalExtractTask = new();
 
-    private string config = System.AppDomain.CurrentDomain.BaseDirectory + @"config.ini";
+    private string config = AppDomain.CurrentDomain.BaseDirectory + @"config.ini";
 
     public MainWindow()
     {
@@ -81,8 +82,7 @@ public partial class MainWindow : Window
             {
                 loadMods = true;
             }
-            _gameFileCache = new GameFileCache(int.MaxValue, 10, _vPath, "mp2024_01_g9ec", loadMods,
-                "Installers;_CommonRedist")
+            _gameFileCache = new GameFileCache(int.MaxValue, 10, _vPath, "mp2024_01_g9ec", loadMods, "Installers;_CommonRedist")
             {
                 LoadAudio = false,
                 LoadVehicles = false,
@@ -118,6 +118,22 @@ public partial class MainWindow : Window
         Console.WriteLine(text);
     }
 
+    private static async Task WriteTexturesAsync(IEnumerable<Texture> textures, string outFolder, CancellationToken ct = default)
+    {
+        Directory.CreateDirectory(outFolder);
+
+        await Parallel.ForEachAsync(textures, ct, async (tex, token) =>
+        {
+            try
+            {
+                var fpath = Path.Combine(outFolder, $"{tex.Name}.dds");
+                var dds = DDSIO.GetDDSFile(tex);
+                await File.WriteAllBytesAsync(fpath, dds, token);
+            }
+            catch
+            { }
+        });
+    }
     private async void BtnLookEnts_OnClick(object? sender, RoutedEventArgs e)
     {
         ToggleControls(false);
@@ -129,13 +145,12 @@ public partial class MainWindow : Window
             var result = await msBoxExtractPath.ShowAsync();
 
             var selectFolder = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(
-                new FolderPickerOpenOptions()
-                {
-                    Title = "Select the folder where you want to save the files",
-                    AllowMultiple = false,
-                });
+                new FolderPickerOpenOptions { Title = "Select the folder where you want to save the files", AllowMultiple = false });
+
+            if (selectFolder is null || selectFolder.Count == 0) { ToggleControls(true); return; }
 
             string? outputPath = selectFolder[0].Path.LocalPath;
+            if (string.IsNullOrWhiteSpace(outputPath)) { ToggleControls(true); return; }
             if (string.IsNullOrEmpty(outputPath)) return;
             foreach (var mapFile in _globalExtractTask.MapFiles)
             {
@@ -190,19 +205,7 @@ public partial class MainWindow : Window
                                 await Task.Run(() => CollectTextures(mYdr.Drawable, textures, textureMissing));
                             }
 
-                            Parallel.ForEach(textures, async (tex) =>
-                            {
-                                try
-                                {
-                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
-                                    var dds = DDSIO.GetDDSFile(tex);
-                                    await File.WriteAllBytesAsync(fpath, dds);
-                                }
-                                catch
-                                {
-                                    // ignored
-                                }
-                            });
+                            await WriteTexturesAsync(textures, extract.FullName);
                         }
                     }
 
@@ -233,19 +236,7 @@ public partial class MainWindow : Window
                                 }
                             }
 
-                            Parallel.ForEach(textures, async (tex) =>
-                            {
-                                try
-                                {
-                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
-                                    var dds = DDSIO.GetDDSFile(tex);
-                                    await File.WriteAllBytesAsync(fpath, dds);
-                                }
-                                catch
-                                {
-                                    // ignored
-                                }
-                            });
+                            await WriteTexturesAsync(textures, extract.FullName);
                         }
                     }
 
@@ -270,19 +261,7 @@ public partial class MainWindow : Window
                             var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
                             await Task.Run(() => CollectTextures(mYft.Fragment.Drawable, textures, textureMissing));
 
-                            Parallel.ForEach(textures, async (tex) =>
-                            {
-                                try
-                                {
-                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
-                                    var dds = DDSIO.GetDDSFile(tex);
-                                    await File.WriteAllBytesAsync(fpath, dds);
-                                }
-                                catch
-                                {
-                                    // ignored
-                                }
-                            });
+                            await WriteTexturesAsync(textures, extract.FullName);
                         }
                     }
                 }
