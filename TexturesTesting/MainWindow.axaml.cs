@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -15,6 +10,13 @@ using CodeWalker.Utils;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 using Salaros.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace TexturesTesting;
 
@@ -24,7 +26,7 @@ public partial class MainWindow : Window
     private GameFileCache _gameFileCache;
     private static readonly ExtractTask _globalExtractTask = new();
 
-    private string config = System.AppDomain.CurrentDomain.BaseDirectory + @"config.ini";
+    private string config = AppDomain.CurrentDomain.BaseDirectory + @"config.ini";
 
     public MainWindow()
     {
@@ -80,8 +82,7 @@ public partial class MainWindow : Window
             {
                 loadMods = true;
             }
-            _gameFileCache = new GameFileCache(int.MaxValue, 10, _vPath, "mp2024_01_g9ec", loadMods,
-                "Installers;_CommonRedist")
+            _gameFileCache = new GameFileCache(int.MaxValue, 10, _vPath, "mp2024_01_g9ec", loadMods, "Installers;_CommonRedist")
             {
                 LoadAudio = false,
                 LoadVehicles = false,
@@ -117,6 +118,22 @@ public partial class MainWindow : Window
         Console.WriteLine(text);
     }
 
+    private static async Task WriteTexturesAsync(IEnumerable<Texture> textures, string outFolder, CancellationToken ct = default)
+    {
+        Directory.CreateDirectory(outFolder);
+
+        await Parallel.ForEachAsync(textures, ct, async (tex, token) =>
+        {
+            try
+            {
+                var fpath = Path.Combine(outFolder, $"{tex.Name}.dds");
+                var dds = DDSIO.GetDDSFile(tex);
+                await File.WriteAllBytesAsync(fpath, dds, token);
+            }
+            catch
+            { }
+        });
+    }
     private async void BtnLookEnts_OnClick(object? sender, RoutedEventArgs e)
     {
         ToggleControls(false);
@@ -128,13 +145,12 @@ public partial class MainWindow : Window
             var result = await msBoxExtractPath.ShowAsync();
 
             var selectFolder = await GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(
-                new FolderPickerOpenOptions()
-                {
-                    Title = "Select the folder where you want to save the files",
-                    AllowMultiple = false,
-                });
+                new FolderPickerOpenOptions { Title = "Select the folder where you want to save the files", AllowMultiple = false });
+
+            if (selectFolder is null || selectFolder.Count == 0) { ToggleControls(true); return; }
 
             string? outputPath = selectFolder[0].Path.LocalPath;
+            if (string.IsNullOrWhiteSpace(outputPath)) { ToggleControls(true); return; }
             if (string.IsNullOrEmpty(outputPath)) return;
             foreach (var mapFile in _globalExtractTask.MapFiles)
             {
@@ -189,19 +205,7 @@ public partial class MainWindow : Window
                                 await Task.Run(() => CollectTextures(mYdr.Drawable, textures, textureMissing));
                             }
 
-                            Parallel.ForEach(textures, async (tex) =>
-                            {
-                                try
-                                {
-                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
-                                    var dds = DDSIO.GetDDSFile(tex);
-                                    await File.WriteAllBytesAsync(fpath, dds);
-                                }
-                                catch
-                                {
-                                    // ignored
-                                }
-                            });
+                            await WriteTexturesAsync(textures, extract.FullName);
                         }
                     }
 
@@ -232,19 +236,7 @@ public partial class MainWindow : Window
                                 }
                             }
 
-                            Parallel.ForEach(textures, async (tex) =>
-                            {
-                                try
-                                {
-                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
-                                    var dds = DDSIO.GetDDSFile(tex);
-                                    await File.WriteAllBytesAsync(fpath, dds);
-                                }
-                                catch
-                                {
-                                    // ignored
-                                }
-                            });
+                            await WriteTexturesAsync(textures, extract.FullName);
                         }
                     }
 
@@ -269,19 +261,7 @@ public partial class MainWindow : Window
                             var extract = Directory.CreateDirectory($"{ymapFolderPath}\\alltextures\\");
                             await Task.Run(() => CollectTextures(mYft.Fragment.Drawable, textures, textureMissing));
 
-                            Parallel.ForEach(textures, async (tex) =>
-                            {
-                                try
-                                {
-                                    var fpath = $"{extract.FullName}\\{tex.Name}.dds";
-                                    var dds = DDSIO.GetDDSFile(tex);
-                                    await File.WriteAllBytesAsync(fpath, dds);
-                                }
-                                catch
-                                {
-                                    // ignored
-                                }
-                            });
+                            await WriteTexturesAsync(textures, extract.FullName);
                         }
                     }
                 }
@@ -309,85 +289,119 @@ public partial class MainWindow : Window
         Close();
     }
 
+    private static uint ToUInt(MetaHash h) => unchecked((uint)h);
     private void CollectTextures(DrawableBase d, ISet<Texture> textureSet, ISet<string> textureMissing)
     {
-        if (d?.ShaderGroup?.TextureDictionary?.Textures?.data_items != null)
+        var sg = d?.ShaderGroup;
+        if (sg == null) return;
+
+        var dictTextures = sg.TextureDictionary?.Textures?.data_items;
+        if (dictTextures != null)
         {
-            foreach (var tex in d.ShaderGroup.TextureDictionary.Textures.data_items)
+            foreach (var tex in dictTextures)
             {
-                textureSet.Add(tex);
+                if (tex != null) textureSet.Add(tex);
             }
         }
 
-        if (d?.ShaderGroup?.Shaders?.data_items == null) return;
+        var shaders = sg.Shaders?.data_items;
+        if (shaders == null) return;
 
         uint archhash = 0u;
         switch (d)
         {
             case Drawable dwbl:
-            {
-                string dname = dwbl.Name.ToLowerInvariant();
-                dname = dname.Split(".")[0];
-                archhash = JenkHash.GenHash(dname);
-                break;
-            }
+                {
+                    var name = dwbl.Name ?? string.Empty;
+                    int dot = name.IndexOf('.');
+                    string raw = dot >= 0 ? name.Substring(0, dot) : name;
+                    string lowered = raw.ToLowerInvariant();
+                    archhash = JenkHash.GenHash(lowered);
+                    break;
+                }
             case FragDrawable fdbl:
-            {
-                var yft = fdbl.Owner as YftFile;
-                MetaHash fraghash = yft?.RpfFileEntry?.ShortNameHash ?? 0;
-                archhash = fraghash;
-                break;
-            }
+                {
+                    var yft = fdbl.Owner as YftFile;
+                    MetaHash fraghash = yft?.RpfFileEntry?.ShortNameHash ?? 0;
+                    archhash = fraghash;
+                    break;
+                }
         }
 
         Archetype arch = _gameFileCache.GetArchetype(archhash);
         if (arch == null) return;
-        uint txdHash = (arch != null) ? arch.TextureDict.Hash : archhash;
-        if ((txdHash == 0) && (archhash == 0))
+
+        uint txdHash = arch.TextureDict != null ? ToUInt(arch.TextureDict.Hash) : archhash;
+
+        var foundCache = new Dictionary<ulong, Texture>(64);
+        var parentCache = new Dictionary<uint, uint>(8);
+
+        uint GetParentTxd(uint h)
         {
+            if (h == 0) return 0;
+            if (parentCache.TryGetValue(h, out var p)) return p;
+            p = _gameFileCache.TryGetParentYtdHash(h);
+            parentCache[h] = p;
+            return p;
         }
 
-        foreach (ShaderFX s in d.ShaderGroup.Shaders.data_items)
+        Texture TryResolve(uint texHash, uint startTxd)
         {
-            if (s?.ParametersList?.Parameters == null) continue;
-            foreach (ShaderParameter p in s.ParametersList.Parameters)
+            if (texHash == 0) return null;
+
+            ulong makeKey(uint th, uint txd) => ((ulong)txd << 32) | th;
+
+            for (uint cur = startTxd; cur != 0; cur = GetParentTxd(cur))
             {
-                if (p.Data is not TextureBase t) continue;
-                if (t is Texture tex)
+                var key = makeKey(texHash, cur);
+                if (foundCache.TryGetValue(key, out var cached)) return cached;
+
+                var tex = TryGetTexture(texHash, cur);
+                if (tex != null)
                 {
-                    textureSet.Add(tex);
+                    foundCache[key] = tex;
+                    return tex;
                 }
-                else
+                foundCache[key] = null;
+            }
+
+            {
+                var key = makeKey(texHash, 0);
+                if (foundCache.TryGetValue(key, out var cached)) return cached;
+
+                var ytd = _gameFileCache.TryGetTextureDictForTexture(texHash);
+                var tex = TryGetTextureFromYtd(texHash, ytd);
+                foundCache[key] = tex; // may be null
+                return tex;
+            }
+        }
+
+        foreach (var s in shaders)
+        {
+            var plist = s?.ParametersList?.Parameters;
+            if (plist == null) continue;
+
+            foreach (var p in plist)
+            {
+                if (p?.Data is null) continue;
+
+                if (p.Data is Texture concrete)
                 {
-                    uint texhash = t.NameHash;
-                    tex = TryGetTexture(texhash, txdHash)!;
-                    if (tex == null)
+                    textureSet.Add(concrete);
+                    continue;
+                }
+
+                if (p.Data is TextureBase tb)
+                {
+                    var resolved = TryResolve(tb.NameHash, txdHash);
+                    if (resolved != null)
                     {
-                        var ptxdhash = _gameFileCache.TryGetParentYtdHash(txdHash);
-                        while ((ptxdhash != 0) && (tex == null))
-                        {
-                            tex = TryGetTexture(texhash, ptxdhash);
-                            if (tex == null)
-                            {
-                                ptxdhash = _gameFileCache.TryGetParentYtdHash(ptxdhash);
-                            }
-                        }
-
-                        if (tex == null)
-                        {
-                            var ytd = _gameFileCache.TryGetTextureDictForTexture(texhash);
-                            tex = TryGetTextureFromYtd(texhash, ytd);
-                        }
-
-                        if (tex == null)
-                        {
-                            textureMissing.Add(t.Name);
-                        }
+                        textureSet.Add(resolved);
                     }
-
-                    if (tex != null)
+                    else
                     {
-                        textureSet.Add(tex);
+                        if (!string.IsNullOrEmpty(tb.Name))
+                            textureMissing.Add(tb.Name);
                     }
                 }
             }
@@ -396,16 +410,28 @@ public partial class MainWindow : Window
 
     private Texture? TryGetTexture(uint texHash, uint txdHash)
     {
-        if (txdHash == 0) return null;
+        if (txdHash == 0 || texHash == 0) return null;
         var ytd = _gameFileCache.GetYtd(txdHash);
-        var tex = TryGetTextureFromYtd(texHash, ytd);
-        return tex;
+        return TryGetTextureFromYtd(texHash, ytd);
     }
 
     private static Texture? TryGetTextureFromYtd(uint texHash, YtdFile? ytd)
     {
-        if (ytd == null) return null;
-        ytd.Load(ytd.RpfFileEntry.File.ExtractFile(ytd.RpfFileEntry), ytd.RpfFileEntry);
+        if (ytd == null || texHash == 0) return null;
+        if (ytd.TextureDict == null)
+        {
+            var entry = ytd.RpfFileEntry;
+            if (entry?.File != null)
+            {
+                var data = entry.File.ExtractFile(entry);
+                ytd.Load(data, entry);
+            }
+            else
+            {
+                ytd.Load(null, entry);
+            }
+        }
+
         return ytd.TextureDict?.Lookup(texHash);
     }
 
@@ -413,14 +439,14 @@ public partial class MainWindow : Window
     {
         switch (CBoxExtractType.SelectedIndex)
         {
-            case 0:
+            case 0: // YMAPs
 
                 var ymapResult = await GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(
                     new FilePickerOpenOptions()
                     {
                         Title = "Select YMAP(s) folder",
                         AllowMultiple = true,
-                        FileTypeFilter = new[] { new FilePickerFileType("YMAP(s)") { Patterns = new[] { "*.ymap" } } }
+                        FileTypeFilter = new[] { new FilePickerFileType("YMAP(s)") { Patterns = new[] { "*.ymap" }}}
                     });
                 if (ymapResult.Count <= 0) return;
                 var ymapMsgInfo = MessageBoxManager.GetMessageBoxStandard($"Information",
@@ -445,7 +471,7 @@ public partial class MainWindow : Window
                     {
                         Title = "Select YTYP(s) folder",
                         AllowMultiple = true,
-                        FileTypeFilter = new[] { new FilePickerFileType("YTYP(s)") { Patterns = new[] { "*.ytyp" } } }
+                        FileTypeFilter = new[] { new FilePickerFileType("YTYP(s)") { Patterns = new[] { "*.ytyp" }}}
                     });
 
                 var ytypMsgInfo = MessageBoxManager.GetMessageBoxStandard($"Information",
@@ -458,8 +484,15 @@ public partial class MainWindow : Window
                     BtnLookEnts.IsEnabled = true;
                     foreach (var ytyp in ytypResult)
                     {
-                        _globalExtractTask.MapFiles.Add(new MapTask(ytyp.Path.LocalPath,
-                            GetEntityHashesFromFile(ytyp.Path.LocalPath, 1, CBoxExtractType.SelectedIndex == 3)));
+                        try
+                        {
+                            var hashes = GetEntityHashesFromFile(ytyp.Path.LocalPath, 1, CBoxExtractType.SelectedIndex == 3);
+                            _globalExtractTask.MapFiles.Add(new MapTask(ytyp.Path.LocalPath, hashes));
+                        }
+                        catch (InvalidDataException ex)
+                        {
+                            Debug.WriteLine($"InvalidDataException for file {ytyp.Path.LocalPath}: {ex.Message}");
+                        }
                     }
                 }
 
@@ -470,7 +503,7 @@ public partial class MainWindow : Window
                     {
                         Title = "Select Text File folder",
                         AllowMultiple = false,
-                        FileTypeFilter = new[] { new FilePickerFileType("Text File") { Patterns = new[] { "*.txt" } } }
+                        FileTypeFilter = new[] { new FilePickerFileType("Text File") { Patterns = new[] { "*.txt" }}}
                     });
 
                 var textFileMsgInfo = MessageBoxManager.GetMessageBoxStandard($"Information", $"Valid Text File",
@@ -529,10 +562,6 @@ public partial class MainWindow : Window
     {
         List<uint> hashes = textLines.Select(line => JenkHash.GenHash(line.ToLowerInvariant().Trim())).ToList();
         return hashes.Distinct().ToList();
-    }
-
-    private void ExtractAssetsXml(List<uint> hashes, string path)
-    {
     }
 
     private uint GetYddFromHash(uint hash)
